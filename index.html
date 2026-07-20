@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MaxOut">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>MaxOut</title>
+<style>
+:root {
+  --bg: #000;
+  --surface: #111;
+  --surface2: #1a1a1a;
+  --border: #222;
+  --text: #f5f5f5;
+  --text2: #999;
+  --accent: #ff6b35;
+  --accent2: #ff8c5a;
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --blue: #60a5fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 70px) env(safe-area-inset-left);
+  -webkit-font-smoothing: antialiased;
+}
+
+.screen { display: none; padding: 20px; padding-top: 10px; }
+.screen.active { display: block; }
+
+/* Nav */
+.nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  z-index: 100;
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: none; color: var(--text2);
+  font-size: 10px; padding: 6px 0; cursor: pointer;
+  transition: color 0.2s;
+}
+.nav-btn.active { color: var(--accent); }
+.nav-btn svg { width: 24px; height: 24px; }
+
+/* Header */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0 20px;
+}
+.header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+.header-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text2); margin-bottom: 8px;
+}
+
+/* Day Block */
+.day-block-header {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.day-number { font-size: 42px; font-weight: 800; color: var(--accent); line-height: 1; }
+.day-meta { text-align: right; }
+.day-time { font-size: 15px; font-weight: 600; }
+.day-remaining { font-size: 13px; color: var(--text2); }
+
+.progress-bar {
+  width: 100%; height: 6px; background: var(--surface2);
+  border-radius: 3px; margin-top: 16px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 3px; transition: width 0.5s ease;
+}
+
+/* Hour Grid */
+.hour-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;
+  margin-top: 16px;
+}
+.hour-cell {
+  aspect-ratio: 1; border-radius: 10px; display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface2);
+  transition: all 0.2s;
+}
+.hour-cell.rated { border-color: transparent; }
+.hour-cell.rated-high { background: rgba(52,211,153,0.2); color: var(--green); }
+.hour-cell.rated-mid { background: rgba(251,191,36,0.2); color: var(--yellow); }
+.hour-cell.rated-low { background: rgba(248,113,113,0.2); color: var(--red); }
+.hour-cell.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.hour-cell.future { opacity: 0.3; pointer-events: none; }
+.hour-cell .hour-label { font-size: 10px; color: var(--text2); margin-top: 2px; }
+
+/* Check-in Modal */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(10px);
+  display: none; align-items: center; justify-content: center;
+  z-index: 200; padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px 24px;
+  width: 100%; max-width: 360px;
+}
+.modal h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.modal-sub { font-size: 14px; color: var(--text2); margin-bottom: 24px; }
+
+.rating-row {
+  display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap;
+  justify-content: center;
+}
+.rating-btn {
+  width: 44px; height: 44px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text); font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.rating-btn:active, .rating-btn.selected {
+  background: var(--accent); border-color: var(--accent); color: #000;
+  transform: scale(1.1);
+}
+
+.modal textarea {
+  width: 100%; height: 80px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 12px;
+  color: var(--text); font-size: 14px; padding: 12px;
+  resize: none; font-family: inherit; margin-bottom: 16px;
+}
+.modal textarea::placeholder { color: var(--text2); }
+.modal textarea:focus { outline: none; border-color: var(--accent); }
+
+.btn-primary {
+  width: 100%; padding: 14px; border-radius: 12px;
+  background: var(--accent); color: #000;
+  font-size: 16px; font-weight: 700; border: none;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.btn-primary:active { opacity: 0.8; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Goals Screen */
+.goal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px; margin-bottom: 12px;
+}
+.goal-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.goal-target { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
+.depth-bar {
+  position: relative; height: 32px; background: var(--surface2);
+  border-radius: 8px; overflow: hidden;
+}
+.depth-fill {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, var(--accent));
+  border-radius: 8px; transition: width 0.5s ease;
+}
+.depth-label {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 12px; font-weight: 600; z-index: 1;
+}
+.depth-pct {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; font-weight: 800; z-index: 1; color: var(--accent);
+}
+
+.add-goal-btn {
+  width: 100%; padding: 16px; border-radius: 16px;
+  border: 2px dashed var(--border); background: none;
+  color: var(--text2); font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.add-goal-btn:active { border-color: var(--accent); color: var(--accent); }
+
+/* Stats Screen */
+.stat-row {
+  display: flex; gap: 12px; margin-bottom: 12px;
+}
+.stat-box {
+  flex: 1; background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px; text-align: center;
+}
+.stat-value { font-size: 28px; font-weight: 800; color: var(--accent); }
+.stat-label { font-size: 11px; color: var(--text2); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; margin-top: 16px; }
+.bar-col {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.bar {
+  width: 100%; border-radius: 4px 4px 0 0;
+  background: var(--accent); min-height: 2px;
+  transition: height 0.3s ease;
+}
+.bar-label { font-size: 9px; color: var(--text2); }
+
+/* Settings */
+.setting-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 0; border-bottom: 1px solid var(--border);
+}
+.setting-label { font-size: 15px; font-weight: 500; }
+.setting-label small { display: block; font-size: 12px; color: var(--text2); font-weight: 400; margin-top: 2px; }
+
+.time-input {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 14px;
+  color: var(--text); font-size: 15px; font-weight: 600;
+  font-family: inherit;
+}
+.time-input:focus { outline: none; border-color: var(--accent); }
+
+/* Goal Modal */
+.goal-input {
+  width: 100%; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 12px;
+  color: var(--text); font-size: 15px; padding: 12px 14px;
+  font-family: inherit; margin-bottom: 12px;
+}
+.goal-input:focus { outline: none; border-color: var(--accent); }
+.goal-input::placeholder { color: var(--text2); }
+
+.goal-actions {
+  display: flex; gap: 8px; margin-top: 8px;
+}
+.btn-danger {
+  flex: 1; padding: 12px; border-radius: 12px;
+  background: rgba(248,113,113,0.15); color: var(--red);
+  font-size: 14px; font-weight: 600; border: none; cursor: pointer;
+}
+.btn-secondary {
+  flex: 1; padding: 12px; border-radius: 12px;
+  background: var(--surface2); color: var(--text);
+  font-size: 14px; font-weight: 600; border: 1px solid var(--border); cursor: pointer;
+}
+
+/* Streak */
+.streak-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,107,53,0.15); color: var(--accent);
+  padding: 6px 12px; border-radius: 20px;
+  font-size: 13px; font-weight: 700;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.card { animation: slideUp 0.3s ease; }
+</style>
+</head>
+<body>
+
+<!-- TODAY SCREEN -->
+<div id="screen-today" class="screen active">
+  <div class="header">
+    <div>
+      <h1>MaxOut</h1>
+      <div class="header-sub" id="today-date"></div>
+    </div>
+    <div class="streak-badge" id="streak-badge">0 day streak</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Current Block</div>
+    <div class="day-block-header">
+      <div class="day-number" id="current-day">1</div>
+      <div class="day-meta">
+        <div class="day-time" id="block-time-range"></div>
+        <div class="day-remaining" id="block-remaining"></div>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="block-progress" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Hours Today</div>
+    <div class="hour-grid" id="hour-grid"></div>
+  </div>
+
+  <div class="card" id="daily-score-card">
+    <div class="card-label">Today's Score</div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px;">
+      <span id="daily-avg" style="font-size:36px;font-weight:800;color:var(--accent)">—</span>
+      <span style="font-size:14px;color:var(--text2)">/10 average</span>
+    </div>
+    <div id="daily-rated" style="font-size:13px;color:var(--text2);margin-top:4px;"></div>
+  </div>
+</div>
+
+<!-- GOALS SCREEN -->
+<div id="screen-goals" class="screen">
+  <div class="header">
+    <div>
+      <h1>Goals</h1>
+      <div class="header-sub">Depth Perception</div>
+    </div>
+  </div>
+  <div id="goals-list"></div>
+  <button class="add-goal-btn" onclick="openGoalModal()">+ Add Goal</button>
+</div>
+
+<!-- STATS SCREEN -->
+<div id="screen-stats" class="screen">
+  <div class="header">
+    <div>
+      <h1>Stats</h1>
+      <div class="header-sub">Weekly Rollup</div>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="stat-value" id="stat-avg">—</div>
+      <div class="stat-label">Avg Score</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-checkins">0</div>
+      <div class="stat-label">Check-ins</div>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="stat-value" id="stat-best-hour">—</div>
+      <div class="stat-label">Best Hour</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="stat-worst-hour">—</div>
+      <div class="stat-label">Worst Hour</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label">Last 7 Days — Average by Hour</div>
+    <div class="bar-chart" id="hour-chart"></div>
+  </div>
+  <div class="card">
+    <div class="card-label">Daily Averages — Last 7 Days</div>
+    <div class="bar-chart" id="daily-chart"></div>
+  </div>
+</div>
+
+<!-- SETTINGS SCREEN -->
+<div id="screen-settings" class="screen">
+  <div class="header">
+    <div>
+      <h1>Settings</h1>
+      <div class="header-sub">Configure your day</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="setting-row">
+      <div class="setting-label">
+        Wake Time
+        <small>Start of Day 1</small>
+      </div>
+      <input type="time" class="time-input" id="wake-time" value="05:00">
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">
+        Block Length
+        <small>Hours per "day"</small>
+      </div>
+      <select class="time-input" id="block-length">
+        <option value="4">4 hours</option>
+        <option value="5">5 hours</option>
+        <option value="6" selected>6 hours</option>
+        <option value="8">8 hours</option>
+      </select>
+    </div>
+    <div class="setting-row" style="border-bottom:none;">
+      <div class="setting-label">
+        Hourly Reminders
+        <small>Push notification each hour</small>
+      </div>
+      <label style="position:relative;width:50px;height:28px;">
+        <input type="checkbox" id="notif-toggle" style="display:none;" onchange="toggleNotifications()">
+        <span style="position:absolute;inset:0;background:var(--surface2);border-radius:14px;transition:0.3s;cursor:pointer;"></span>
+        <span id="notif-knob" style="position:absolute;top:2px;left:2px;width:24px;height:24px;background:var(--text2);border-radius:12px;transition:0.3s;cursor:pointer;"></span>
+      </label>
+    </div>
+  </div>
+  <div class="card">
+    <div class="setting-row" style="border-bottom:none;">
+      <div class="setting-label">
+        Export Data
+        <small>Download all check-in data</small>
+      </div>
+      <button class="time-input" style="cursor:pointer;border:1px solid var(--accent);color:var(--accent);background:none;" onclick="exportData()">Export</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHECK-IN MODAL -->
+<div class="modal-overlay" id="checkin-modal">
+  <div class="modal">
+    <h2 id="checkin-title">Rate This Hour</h2>
+    <div class="modal-sub" id="checkin-sub"></div>
+    <div class="rating-row" id="rating-buttons"></div>
+    <textarea id="checkin-note" placeholder="What did you accomplish? (optional)"></textarea>
+    <button class="btn-primary" id="checkin-submit" onclick="submitCheckin()" disabled>Log It</button>
+  </div>
+</div>
+
+<!-- GOAL MODAL -->
+<div class="modal-overlay" id="goal-modal">
+  <div class="modal">
+    <h2 id="goal-modal-title">Add Goal</h2>
+    <input class="goal-input" id="goal-name-input" placeholder="Goal name (e.g. Launch MVP)">
+    <input class="goal-input" id="goal-target-input" placeholder="Target date (optional)" type="date">
+    <div class="card-label" style="margin-top:8px;">How close are you? (Depth Perception)</div>
+    <input type="range" id="goal-progress-input" min="0" max="100" value="10"
+      style="width:100%;margin:12px 0;accent-color:var(--accent);">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:16px;">
+      <span>Far away</span>
+      <span id="goal-progress-display">10%</span>
+      <span>Finish line</span>
+    </div>
+    <button class="btn-primary" id="goal-save-btn" onclick="saveGoal()">Save Goal</button>
+    <div class="goal-actions" id="goal-edit-actions" style="display:none;">
+      <button class="btn-danger" onclick="deleteGoal()">Delete</button>
+      <button class="btn-secondary" onclick="closeGoalModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showScreen('today')" id="nav-today">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Today
+  </button>
+  <button class="nav-btn" onclick="showScreen('goals')" id="nav-goals">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    Goals
+  </button>
+  <button class="nav-btn" onclick="showScreen('stats')" id="nav-stats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Stats
+  </button>
+  <button class="nav-btn" onclick="showScreen('settings')" id="nav-settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06c.5.5 1.21.71 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.2.65.59 1.16 1.51 1H21a2 2 0 0 1 0 4h-.09c-.92 0-1.31.35-1.51 1z"/></svg>
+    Settings
+  </button>
+</nav>
+
+<script>
+const DB_NAME = 'maxout';
+const DB_VERSION = 1;
+let db;
+let currentCheckinHour = null;
+let editingGoalId = null;
+
+function getSettings() {
+  const s = localStorage.getItem('maxout-settings');
+  return s ? JSON.parse(s) : { wakeTime: '05:00', blockLength: 6, notifications: false };
+}
+
+function saveSettings(s) {
+  localStorage.setItem('maxout-settings', JSON.stringify(s));
+}
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('checkins')) {
+        const store = d.createObjectStore('checkins', { keyPath: 'id', autoIncrement: true });
+        store.createIndex('date', 'date');
+        store.createIndex('timestamp', 'timestamp');
+      }
+      if (!d.objectStoreNames.contains('goals')) {
+        d.createObjectStore('goals', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(); };
+    req.onerror = (e) => reject(e);
+  });
+}
+
+function addCheckin(data) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('checkins', 'readwrite');
+    tx.objectStore('checkins').add(data);
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+
+function getCheckins(startDate, endDate) {
+  return new Promise((resolve) => {
+    const tx = db.transaction('checkins', 'readonly');
+    const store = tx.objectStore('checkins');
+    const idx = store.index('date');
+    const range = IDBKeyRange.bound(startDate, endDate);
+    const results = [];
+    idx.openCursor(range).onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) { results.push(cursor.value); cursor.continue(); }
+      else resolve(results);
+    };
+  });
+}
+
+function getAllCheckins() {
+  return new Promise((resolve) => {
+    const tx = db.transaction('checkins', 'readonly');
+    const results = [];
+    tx.objectStore('checkins').openCursor().onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) { results.push(cursor.value); cursor.continue(); }
+      else resolve(results);
+    };
+  });
+}
+
+function getGoals() {
+  return new Promise((resolve) => {
+    const tx = db.transaction('goals', 'readonly');
+    const results = [];
+    tx.objectStore('goals').openCursor().onsuccess = (e) => {
+      const cursor = e.target.result;
+      if (cursor) { results.push(cursor.value); cursor.continue(); }
+      else resolve(results);
+    };
+  });
+}
+
+function saveGoalToDB(goal) {
+  return new Promise((resolve) => {
+    const tx = db.transaction('goals', 'readwrite');
+    if (goal.id) tx.objectStore('goals').put(goal);
+    else tx.objectStore('goals').add(goal);
+    tx.oncomplete = resolve;
+  });
+}
+
+function deleteGoalFromDB(id) {
+  return new Promise((resolve) => {
+    const tx = db.transaction('goals', 'readwrite');
+    tx.objectStore('goals').delete(id);
+    tx.oncomplete = resolve;
+  });
+}
+
+// Time helpers
+function getWakeMinutes() {
+  const s = getSettings();
+  const [h, m] = s.wakeTime.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function getBlockLength() {
+  return getSettings().blockLength;
+}
+
+function getCurrentBlock() {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const wakeMin = getWakeMinutes();
+  const blockLen = getBlockLength() * 60;
+
+  let elapsed = nowMin - wakeMin;
+  if (elapsed < 0) elapsed += 1440;
+
+  const blockIndex = Math.floor(elapsed / blockLen);
+  const blocksPerDay = Math.floor((24 * 60) / blockLen);
+
+  if (blockIndex >= blocksPerDay) return { block: blocksPerDay, progress: 1, startMin: 0, endMin: 0, elapsed: 0, remaining: 0 };
+
+  const blockStart = (wakeMin + blockIndex * blockLen) % 1440;
+  const blockEnd = (blockStart + blockLen) % 1440;
+  const inBlock = elapsed - blockIndex * blockLen;
+  const progress = inBlock / blockLen;
+  const remaining = blockLen - inBlock;
+
+  return { block: blockIndex + 1, progress, startMin: blockStart, endMin: blockEnd, elapsed: inBlock, remaining };
+}
+
+function minToTime(min) {
+  min = ((min % 1440) + 1440) % 1440;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+function getHoursForDay() {
+  const wakeMin = getWakeMinutes();
+  const blockLen = getBlockLength();
+  const totalHours = blockLen * Math.floor(24 / blockLen);
+  const hours = [];
+  for (let i = 0; i < totalHours; i++) {
+    const hourStart = (wakeMin + i * 60) % 1440;
+    hours.push({ index: i, startMin: hourStart, hour: Math.floor(hourStart / 60) });
+  }
+  return hours;
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Render
+async function renderToday() {
+  const now = new Date();
+  document.getElementById('today-date').textContent =
+    now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  const block = getCurrentBlock();
+  document.getElementById('current-day').textContent = block.block;
+  document.getElementById('block-time-range').textContent =
+    `${minToTime(block.startMin)} — ${minToTime(block.endMin)}`;
+  const remH = Math.floor(block.remaining / 60);
+  const remM = block.remaining % 60;
+  document.getElementById('block-remaining').textContent =
+    `${remH}h ${remM}m remaining`;
+  document.getElementById('block-progress').style.width = `${(block.progress * 100).toFixed(1)}%`;
+
+  const hours = getHoursForDay();
+  const today = todayKey();
+  const checkins = await getCheckins(today, today);
+  const checkinMap = {};
+  checkins.forEach(c => { checkinMap[c.hourIndex] = c; });
+
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const wakeMin = getWakeMinutes();
+  let currentHourIdx = Math.floor(((nowMin - wakeMin + 1440) % 1440) / 60);
+
+  const grid = document.getElementById('hour-grid');
+  grid.innerHTML = '';
+  hours.forEach((h, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'hour-cell';
+    const c = checkinMap[i];
+
+    if (i === currentHourIdx) cell.classList.add('current');
+    else if (i > currentHourIdx) cell.classList.add('future');
+
+    if (c) {
+      cell.classList.add('rated');
+      if (c.rating >= 8) cell.classList.add('rated-high');
+      else if (c.rating >= 5) cell.classList.add('rated-mid');
+      else cell.classList.add('rated-low');
+      cell.innerHTML = `<span>${c.rating}</span><span class="hour-label">${minToTime(h.startMin).replace(' ', '')}</span>`;
+    } else {
+      cell.innerHTML = `<span style="color:var(--text2)">—</span><span class="hour-label">${minToTime(h.startMin).replace(' ', '')}</span>`;
+    }
+
+    if (i <= currentHourIdx) {
+      cell.addEventListener('click', () => openCheckin(i, h));
+    }
+    grid.appendChild(cell);
+  });
+
+  const rated = checkins.filter(c => c.rating);
+  if (rated.length > 0) {
+    const avg = rated.reduce((s, c) => s + c.rating, 0) / rated.length;
+    document.getElementById('daily-avg').textContent = avg.toFixed(1);
+    document.getElementById('daily-rated').textContent = `${rated.length} of ${currentHourIdx + 1} hours rated`;
+  } else {
+    document.getElementById('daily-avg').textContent = '—';
+    document.getElementById('daily-rated').textContent = 'No check-ins yet';
+  }
+
+  updateStreak(checkins);
+}
+
+async function updateStreak() {
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = dateKey(d);
+    const checks = await getCheckins(key, key);
+    if (checks.length >= 3) streak++;
+    else if (i > 0) break;
+  }
+  document.getElementById('streak-badge').textContent = `${streak} day streak`;
+}
+
+function openCheckin(hourIndex, hourData) {
+  currentCheckinHour = { hourIndex, hourData };
+  document.getElementById('checkin-title').textContent = 'Rate This Hour';
+  document.getElementById('checkin-sub').textContent =
+    `${minToTime(hourData.startMin)} — ${minToTime((hourData.startMin + 60) % 1440)}`;
+  document.getElementById('checkin-note').value = '';
+
+  const row = document.getElementById('rating-buttons');
+  row.innerHTML = '';
+  for (let i = 1; i <= 10; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'rating-btn';
+    btn.textContent = i;
+    btn.addEventListener('click', () => {
+      row.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      document.getElementById('checkin-submit').disabled = false;
+    });
+    row.appendChild(btn);
+  }
+  document.getElementById('checkin-submit').disabled = true;
+  document.getElementById('checkin-modal').classList.add('active');
+}
+
+async function submitCheckin() {
+  const selected = document.querySelector('#rating-buttons .selected');
+  if (!selected) return;
+
+  const rating = parseInt(selected.textContent);
+  const note = document.getElementById('checkin-note').value.trim();
+
+  await addCheckin({
+    date: todayKey(),
+    timestamp: Date.now(),
+    hourIndex: currentCheckinHour.hourIndex,
+    hour: currentCheckinHour.hourData.hour,
+    rating,
+    note,
+    block: getCurrentBlock().block
+  });
+
+  document.getElementById('checkin-modal').classList.remove('active');
+  currentCheckinHour = null;
+  renderToday();
+}
+
+// Goals
+async function renderGoals() {
+  const goals = await getGoals();
+  const list = document.getElementById('goals-list');
+  list.innerHTML = '';
+
+  if (goals.length === 0) {
+    list.innerHTML = '<div class="card" style="text-align:center;color:var(--text2);padding:40px 20px;">' +
+      '<div style="font-size:32px;margin-bottom:12px;">🎯</div>' +
+      '<div style="font-size:15px;">No goals yet</div>' +
+      '<div style="font-size:13px;margin-top:4px;">Add goals to track your depth perception</div></div>';
+    return;
+  }
+
+  goals.forEach(g => {
+    const card = document.createElement('div');
+    card.className = 'goal-card';
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', () => openGoalModal(g));
+
+    let targetText = '';
+    if (g.targetDate) {
+      const target = new Date(g.targetDate + 'T00:00:00');
+      const now = new Date();
+      const days = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+      targetText = days > 0 ? `${days} days left` : days === 0 ? 'Due today' : `${Math.abs(days)} days overdue`;
+    }
+
+    card.innerHTML = `
+      <div class="goal-name">${g.name}</div>
+      <div class="goal-target">${targetText || 'No deadline'}</div>
+      <div class="depth-bar">
+        <div class="depth-fill" style="width:${g.progress}%"></div>
+        <div class="depth-label">${g.progress < 50 ? 'Marathon pace' : g.progress < 80 ? 'Picking up speed' : 'Sprint distance'}</div>
+        <div class="depth-pct">${g.progress}%</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function openGoalModal(existing) {
+  editingGoalId = existing ? existing.id : null;
+  document.getElementById('goal-modal-title').textContent = existing ? 'Edit Goal' : 'Add Goal';
+  document.getElementById('goal-name-input').value = existing ? existing.name : '';
+  document.getElementById('goal-target-input').value = existing ? (existing.targetDate || '') : '';
+  document.getElementById('goal-progress-input').value = existing ? existing.progress : 10;
+  document.getElementById('goal-progress-display').textContent = (existing ? existing.progress : 10) + '%';
+  document.getElementById('goal-save-btn').textContent = existing ? 'Update Goal' : 'Save Goal';
+  document.getElementById('goal-edit-actions').style.display = existing ? 'flex' : 'none';
+  document.getElementById('goal-modal').classList.add('active');
+}
+
+function closeGoalModal() {
+  document.getElementById('goal-modal').classList.remove('active');
+  editingGoalId = null;
+}
+
+async function saveGoal() {
+  const name = document.getElementById('goal-name-input').value.trim();
+  if (!name) return;
+
+  const goal = {
+    name,
+    targetDate: document.getElementById('goal-target-input').value || null,
+    progress: parseInt(document.getElementById('goal-progress-input').value),
+    updatedAt: Date.now()
+  };
+  if (editingGoalId) goal.id = editingGoalId;
+
+  await saveGoalToDB(goal);
+  closeGoalModal();
+  renderGoals();
+}
+
+async function deleteGoal() {
+  if (!editingGoalId) return;
+  await deleteGoalFromDB(editingGoalId);
+  closeGoalModal();
+  renderGoals();
+}
+
+// Stats
+async function renderStats() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 7);
+
+  const allCheckins = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const key = dateKey(d);
+    const dayCheckins = await getCheckins(key, key);
+    allCheckins.push(...dayCheckins);
+  }
+
+  if (allCheckins.length === 0) {
+    document.getElementById('stat-avg').textContent = '—';
+    document.getElementById('stat-checkins').textContent = '0';
+    document.getElementById('stat-best-hour').textContent = '—';
+    document.getElementById('stat-worst-hour').textContent = '—';
+    return;
+  }
+
+  const avg = allCheckins.reduce((s, c) => s + c.rating, 0) / allCheckins.length;
+  document.getElementById('stat-avg').textContent = avg.toFixed(1);
+  document.getElementById('stat-checkins').textContent = allCheckins.length;
+
+  const hourAvgs = {};
+  allCheckins.forEach(c => {
+    if (!hourAvgs[c.hourIndex]) hourAvgs[c.hourIndex] = [];
+    hourAvgs[c.hourIndex].push(c.rating);
+  });
+
+  let bestHour = null, worstHour = null, bestAvg = 0, worstAvg = 11;
+  Object.entries(hourAvgs).forEach(([idx, ratings]) => {
+    const a = ratings.reduce((s, r) => s + r, 0) / ratings.length;
+    if (a > bestAvg) { bestAvg = a; bestHour = parseInt(idx); }
+    if (a < worstAvg) { worstAvg = a; worstHour = parseInt(idx); }
+  });
+
+  const hours = getHoursForDay();
+  document.getElementById('stat-best-hour').textContent =
+    bestHour !== null && hours[bestHour] ? minToTime(hours[bestHour].startMin) : '—';
+  document.getElementById('stat-worst-hour').textContent =
+    worstHour !== null && hours[worstHour] ? minToTime(hours[worstHour].startMin) : '—';
+
+  // Hour chart
+  const hourChart = document.getElementById('hour-chart');
+  hourChart.innerHTML = '';
+  const maxHours = Math.min(hours.length, 18);
+  for (let i = 0; i < maxHours; i++) {
+    const ratings = hourAvgs[i] || [];
+    const a = ratings.length > 0 ? ratings.reduce((s, r) => s + r, 0) / ratings.length : 0;
+    const col = document.createElement('div');
+    col.className = 'bar-col';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = `${(a / 10) * 100}%`;
+    if (a >= 8) bar.style.background = 'var(--green)';
+    else if (a >= 5) bar.style.background = 'var(--yellow)';
+    else if (a > 0) bar.style.background = 'var(--red)';
+    else bar.style.background = 'var(--surface2)';
+    const label = document.createElement('div');
+    label.className = 'bar-label';
+    label.textContent = `H${i + 1}`;
+    col.appendChild(bar);
+    col.appendChild(label);
+    hourChart.appendChild(col);
+  }
+
+  // Daily chart
+  const dailyChart = document.getElementById('daily-chart');
+  dailyChart.innerHTML = '';
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = dateKey(d);
+    const dayCheckins = allCheckins.filter(c => c.date === key);
+    const a = dayCheckins.length > 0 ? dayCheckins.reduce((s, c) => s + c.rating, 0) / dayCheckins.length : 0;
+    const col = document.createElement('div');
+    col.className = 'bar-col';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = `${(a / 10) * 100}%`;
+    if (a >= 8) bar.style.background = 'var(--green)';
+    else if (a >= 5) bar.style.background = 'var(--yellow)';
+    else if (a > 0) bar.style.background = 'var(--red)';
+    else bar.style.background = 'var(--surface2)';
+    const label = document.createElement('div');
+    label.className = 'bar-label';
+    label.textContent = days[d.getDay()];
+    col.appendChild(bar);
+    col.appendChild(label);
+    dailyChart.appendChild(col);
+  }
+}
+
+// Navigation
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+  document.getElementById(`nav-${name}`).classList.add('active');
+
+  if (name === 'today') renderToday();
+  else if (name === 'goals') renderGoals();
+  else if (name === 'stats') renderStats();
+}
+
+// Settings
+function loadSettings() {
+  const s = getSettings();
+  document.getElementById('wake-time').value = s.wakeTime;
+  document.getElementById('block-length').value = s.blockLength;
+  document.getElementById('notif-toggle').checked = s.notifications;
+  updateToggleUI(s.notifications);
+}
+
+function updateToggleUI(on) {
+  const knob = document.getElementById('notif-knob');
+  const track = knob.previousElementSibling;
+  if (on) {
+    knob.style.left = '24px';
+    knob.style.background = '#fff';
+    track.style.background = 'var(--accent)';
+  } else {
+    knob.style.left = '2px';
+    knob.style.background = 'var(--text2)';
+    track.style.background = 'var(--surface2)';
+  }
+}
+
+async function toggleNotifications() {
+  const on = document.getElementById('notif-toggle').checked;
+  updateToggleUI(on);
+  const s = getSettings();
+  s.notifications = on;
+  saveSettings(s);
+
+  if (on && 'Notification' in window) {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      s.notifications = false;
+      saveSettings(s);
+      document.getElementById('notif-toggle').checked = false;
+      updateToggleUI(false);
+    }
+  }
+}
+
+document.getElementById('wake-time').addEventListener('change', (e) => {
+  const s = getSettings();
+  s.wakeTime = e.target.value;
+  saveSettings(s);
+  renderToday();
+});
+
+document.getElementById('block-length').addEventListener('change', (e) => {
+  const s = getSettings();
+  s.blockLength = parseInt(e.target.value);
+  saveSettings(s);
+  renderToday();
+});
+
+document.getElementById('goal-progress-input').addEventListener('input', (e) => {
+  document.getElementById('goal-progress-display').textContent = e.target.value + '%';
+});
+
+// Close modals on overlay click
+document.getElementById('checkin-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove('active');
+    currentCheckinHour = null;
+  }
+});
+document.getElementById('goal-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeGoalModal();
+});
+
+// Notification timer
+function scheduleNotifications() {
+  const s = getSettings();
+  if (!s.notifications) return;
+
+  setInterval(() => {
+    const now = new Date();
+    if (now.getMinutes() === 0 && now.getSeconds() < 5) {
+      const nowMin = now.getHours() * 60;
+      const wakeMin = getWakeMinutes();
+      const blockLen = getBlockLength() * 60;
+      const elapsed = ((nowMin - wakeMin) + 1440) % 1440;
+      if (elapsed < blockLen * Math.floor(24 * 60 / blockLen)) {
+        new Notification('MaxOut — Rate Your Hour', {
+          body: `How was your last hour? Tap to rate.`,
+          icon: 'icon-192.png'
+        });
+      }
+    }
+  }, 5000);
+}
+
+async function exportData() {
+  const all = await getAllCheckins();
+  const goals = await getGoals();
+  const data = { checkins: all, goals, settings: getSettings(), exported: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `maxout-export-${todayKey()}.json`;
+  a.click();
+}
+
+// Auto-refresh every minute
+setInterval(() => {
+  if (document.getElementById('screen-today').classList.contains('active')) {
+    renderToday();
+  }
+}, 60000);
+
+// Init
+async function init() {
+  await initDB();
+  loadSettings();
+  renderToday();
+  scheduleNotifications();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "MaxOut — 3 Days in 1",
+  "short_name": "MaxOut",
+  "description": "Personal productivity app based on the 6-hour day framework",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
