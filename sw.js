@@ -1,5 +1,5 @@
-const CACHE_NAME = 'maxout-v1';
-const ASSETS = ['/', '/index.html', '/manifest.json'];
+const CACHE_NAME = 'maxout-v2';
+const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
